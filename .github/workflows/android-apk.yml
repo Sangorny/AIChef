@@ -1,4 +1,4 @@
-name: Build Android APK (Capacitor, clean)
+name: Build Android APK (Capacitor, android dep)
 
 on:
   workflow_dispatch: {}
@@ -10,14 +10,12 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      # Java 17
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
-      # Android SDK + licencias
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       - name: Install build-tools & platform
@@ -25,34 +23,32 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
 
-      # Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # Instalar deps y compilar la web (Vite)
+      # Instalar deps y compilar la web
       - name: Install deps & build web
         env: { CI: false }
         run: |
           npm install --legacy-peer-deps
           npm run build
 
-      # Preparar Android con Capacitor (usa el capacitor.config.json que ya creaste)
+      # === AQUI añadimos @capacitor/android ===
       - name: Prepare Capacitor Android
         run: |
-          npm ls @capacitor/core >/dev/null 2>&1 || npm install @capacitor/core @capacitor/cli --save-exact
-          [ -d android ] || npx cap add android
+          npm install @capacitor/core @capacitor/cli @capacitor/android --save-exact
+          [ -f capacitor.config.json ] || echo '{"appId":"com.aichef.app","appName":"AIChef","webDir":"dist","bundledWebRuntime":false,"server":{"androidScheme":"https"}}' > capacitor.config.json
+          npx cap add android || true
           npx cap sync android
 
-      # Compilar APK release (sin firmar)
       - name: Build APK (release)
         run: |
           cd android
           ./gradlew --no-daemon --stacktrace assembleRelease
           ls -la app/build/outputs/apk/release
 
-      # Subir APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
