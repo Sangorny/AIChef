@@ -1,0 +1,7 @@
+{
+  "appId": "com.aichef.app",
+  "appName": "AIChef",
+  "webDir": "dist",
+  "bundledWebRuntime": false,
+  "server": { "androidScheme": "https" }
+}
