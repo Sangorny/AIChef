@@ -1,0 +1,5 @@
+{
+  "name": "AIChef",
+  "description": "Upload photos of your fridge and get instant recipe suggestions from AIChef. Reduce food waste and discover new meals with the ingredients you already have.",
+  "requestFramePermissions": []
+}
