@@ -1,4 +1,4 @@
-name: Build Android APK (Capacitor, SDK ready, no cache)
+name: Build Android APK (Capacitor, fixed)
 
 on:
   workflow_dispatch: {}
@@ -17,7 +17,7 @@ jobs:
           distribution: temurin
           java-version: '17'
 
-      # Android SDK + licencias + componentes
+      # Android SDK + licencias
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
       - name: Install build-tools & platform
@@ -25,29 +25,39 @@ jobs:
           yes | sdkmanager --licenses
           sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
 
-      # Node (SIN cache porque no hay lockfile)
+      # Node
       - name: Setup Node
         uses: actions/setup-node@v4
         with:
           node-version: '20'
 
-      # Instalar deps y compilar web (Vite)
+      # Instalar deps y compilar la web (Vite)
       - name: Install deps & build web
-        env:
-          CI: false
+        env: { CI: false }
         run: |
           npm install --legacy-peer-deps
           npm run build
 
-      # Preparar Capacitor + Android
+      # Crear configuración de Capacitor si falta (sin prompts)
+      - name: Create Capacitor config if missing
+        run: |
+          if [ ! -f capacitor.config.json ] && [ ! -f capacitor.config.ts ]; then
+            cat > capacitor.config.json <<'JSON'
+            {
+              "appId": "com.aichef.app",
+              "appName": "AIChef",
+              "webDir": "dist",
+              "bundledWebRuntime": false
+            }
+            JSON
+          fi
+
+      # Preparar Android con Capacitor
       - name: Prepare Capacitor Android
         run: |
           npm ls @capacitor/core >/dev/null 2>&1 || npm install @capacitor/core @capacitor/cli --save-exact
-          if [ ! -f capacitor.config.ts ] && [ ! -f capacitor.config.json ]; then
-            npx cap init "AIChef" "com.aichef.app" --web-dir=dist --no-input
-          fi
           [ -d android ] || npx cap add android
-          npx cap sync android --no-interactive
+          npx cap sync android
 
       # Compilar APK release (sin firmar)
       - name: Build APK (release)
