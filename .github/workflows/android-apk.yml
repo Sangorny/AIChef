@@ -1,4 +1,4 @@
-name: Build Android APK (Capacitor, fixed)
+name: Build Android APK (Capacitor, clean)
 
 on:
   workflow_dispatch: {}
@@ -38,21 +38,7 @@ jobs:
           npm install --legacy-peer-deps
           npm run build
 
-      # Crear configuración de Capacitor si falta (sin prompts)
-      - name: Create Capacitor config if missing
-        run: |
-          if [ ! -f capacitor.config.json ] && [ ! -f capacitor.config.ts ]; then
-            cat > capacitor.config.json <<'JSON'
-            {
-              "appId": "com.aichef.app",
-              "appName": "AIChef",
-              "webDir": "dist",
-              "bundledWebRuntime": false
-            }
-            JSON
-          fi
-
-      # Preparar Android con Capacitor
+      # Preparar Android con Capacitor (usa el capacitor.config.json que ya creaste)
       - name: Prepare Capacitor Android
         run: |
           npm ls @capacitor/core >/dev/null 2>&1 || npm install @capacitor/core @capacitor/cli --save-exact
