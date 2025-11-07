@@ -1,45 +1,62 @@
-name: Build Android APK (Capacitor auto)
+name: Build Android APK (Capacitor, SDK ready)
 
 on:
-  workflow_dispatch: {}   # Botón "Run workflow"
+  workflow_dispatch: {}
 
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      # Java 17
+      - name: Setup Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # Android SDK + licencias + componentes necesarios
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+      - name: Install build-tools & platform
+        run: |
+          sdkmanager --licenses <<< "y"
+          sdkmanager "platform-tools" "build-tools;34.0.0" "platforms;android-34"
+
+      # Node
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
 
+      # Instalar deps y compilar tu web (Vite)
       - name: Install deps & build web
+        env: { CI: false }
         run: |
-          npm ci || npm install
+          npm ci || npm install --legacy-peer-deps
           npm run build
 
-      - name: Add Capacitor (if missing)
+      # Añadir Capacitor si falta y sincronizar Android
+      - name: Prepare Capacitor Android
         run: |
-          npm ls @capacitor/core || npm install @capacitor/core @capacitor/cli --save-exact
+          npm ls @capacitor/core >/dev/null 2>&1 || npm install @capacitor/core @capacitor/cli --save-exact
           if [ ! -f capacitor.config.ts ] && [ ! -f capacitor.config.json ]; then
             npx cap init "AIChef" "com.aichef.app" --web-dir=dist --no-input
           fi
-
-      - name: Capacitor sync
-        run: |
           [ -d android ] || npx cap add android
-          npx cap sync android
+          npx cap sync android --no-interactive
 
-      - uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-
-      - name: Build APK (release, unsigned)
+      # Compilar APK release (sin firmar)
+      - name: Build APK (release)
         run: |
           cd android
-          ./gradlew assembleRelease
+          ./gradlew --no-daemon --stacktrace assembleRelease
+          ls -la app/build/outputs/apk/release
 
+      # Subir artefacto
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
