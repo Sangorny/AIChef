@@ -1,0 +1,47 @@
+name: Build Android APK (Capacitor auto)
+
+on:
+  workflow_dispatch: {}   # Botón "Run workflow"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install deps & build web
+        run: |
+          npm ci || npm install
+          npm run build
+
+      - name: Add Capacitor (if missing)
+        run: |
+          npm ls @capacitor/core || npm install @capacitor/core @capacitor/cli --save-exact
+          if [ ! -f capacitor.config.ts ] && [ ! -f capacitor.config.json ]; then
+            npx cap init "AIChef" "com.aichef.app" --web-dir=dist --no-input
+          fi
+
+      - name: Capacitor sync
+        run: |
+          [ -d android ] || npx cap add android
+          npx cap sync android
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Build APK (release, unsigned)
+        run: |
+          cd android
+          ./gradlew assembleRelease
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-release-unsigned
+          path: android/app/build/outputs/apk/release/app-release-unsigned.apk
